@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Info, Clock, AlertTriangle } from 'lucide-react';
-import './TimeLogs.css';
 
 type Category = 'PROJECT WORK' | 'MEETINGS' | 'TIME-OFF';
 
@@ -223,19 +222,19 @@ export function TimeLogs() {
   }, [year, month, daysInMonth, logs]);
 
   return (
-    <div className="time-logs">
-      <header className="page-header time-header">
+    <div className="p-8 max-w-7xl mx-auto h-full overflow-y-auto">
+      <header className="flex justify-between items-start pb-6 border-b border-outline-variant mb-6">
         <div>
-          <h1 className="page-title" style={{ color: 'var(--accent)', fontSize: '1.25rem' }}>Time Logger</h1>
-          <div className="month-selector">
-            <span className="current-month">{monthName}</span>
-            <button className="icon-btn" onClick={handlePrevMonth}><ChevronLeft size={16} /></button>
-            <button className="icon-btn" onClick={handleNextMonth}><ChevronRight size={16} /></button>
+          <h1 className="text-2xl font-bold text-primary mb-1">Time Logger</h1>
+          <div className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded border border-outline-variant mt-2">
+            <span className="font-mono text-sm text-on-surface-variant mr-4">{monthName}</span>
+            <button className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors" onClick={handlePrevMonth}><ChevronLeft size={16} /></button>
+            <button className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors" onClick={handleNextMonth}><ChevronRight size={16} /></button>
           </div>
         </div>
-        <div className="header-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+        <div className="flex flex-col items-end gap-1">
           <button 
-            className="btn btn-danger submit-btn"
+            className="px-6 py-3 rounded font-bold transition-colors flex items-center justify-center gap-2 text-sm bg-error-container text-on-error-container hover:bg-error"
             disabled={incompleteDays.length > 0}
             style={incompleteDays.length > 0 ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
             title={incompleteDays.length > 0 ? "Complete all work days to submit" : ""}
@@ -243,72 +242,74 @@ export function TimeLogs() {
             <AlertTriangle size={16} /> Submit LoE
           </button>
           {incompleteDays.length > 0 && (
-            <span style={{ fontSize: '0.65rem', color: '#ef4444', textAlign: 'right', maxWidth: '250px', lineHeight: 1.2 }}>
+            <span className="text-[0.65rem] text-error text-right max-w-[250px] leading-tight mt-1">
               Missing logs for {incompleteDays.length} work day(s)
             </span>
           )}
         </div>
       </header>
 
-      <div className="page-content pt-0">
-        <div className="status-cards">
-          <div className="status-card border-left-lime">
-            <div className="status-icon"><Info size={20} color="#a3e635" /></div>
-            <div className="status-info">
-              <span className="status-label">SUBMISSION DEADLINE</span>
-              <span className="status-value">Oct 31, 23:59 EST</span>
+      <div className="pt-0">
+        <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-secondary">
+            <div><Info size={20} className="text-secondary" /></div>
+            <div className="flex flex-col">
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">SUBMISSION DEADLINE</span>
+              <span className="text-base text-on-surface font-mono">Oct 31, 23:59 EST</span>
             </div>
           </div>
-          <div className="status-card border-left-teal">
-            <div className="status-icon"><Clock size={20} color="var(--accent)" /></div>
-            <div className="status-info">
-              <span className="status-label">WORK DAYS</span>
-              <span className="status-value">22 Days (176 Hours Total)</span>
+          <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-primary">
+            <div><Clock size={20} className="text-primary" /></div>
+            <div className="flex flex-col">
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">WORK DAYS</span>
+              <span className="text-base text-on-surface font-mono">22 Days (176 Hours Total)</span>
             </div>
           </div>
-          <div className="status-card border-left-white">
-            <div className="status-icon"><AlertTriangle size={20} color="var(--text-primary)" /></div>
-            <div className="status-info">
-              <span className="status-label">STATUS</span>
-              <span className="status-value">{Math.max(0, 176 - totalLoggedHours)} Hours Remaining</span>
+          <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-on-surface">
+            <div><AlertTriangle size={20} className="text-on-surface" /></div>
+            <div className="flex flex-col">
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">STATUS</span>
+              <span className="text-base text-on-surface font-mono">{Math.max(0, 176 - totalLoggedHours)} Hours Remaining</span>
             </div>
           </div>
         </div>
 
         {showForm ? (
-          <div className="entry-controls" style={{ alignItems: 'center' }}>
+          <div className="flex items-center bg-surface-variant/20 p-6 rounded border border-outline-variant mb-8">
             
-            <div className="control-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem', marginRight: '1rem' }}>
-              <label style={{ margin: 0, cursor: 'pointer', color: isTimeOff ? 'var(--accent)' : 'var(--text-secondary)' }} onClick={() => setIsTimeOff(!isTimeOff)}>
+            <div className="flex flex-row items-center gap-3 mr-6">
+              <label 
+                className={`text-xs tracking-wider cursor-pointer font-semibold ${isTimeOff ? 'text-primary' : 'text-on-surface-variant'}`} 
+                onClick={() => setIsTimeOff(!isTimeOff)}
+              >
                 TIME OFF
               </label>
               <div 
-                className={`toggle-switch ${isTimeOff ? 'active' : ''}`}
+                className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${isTimeOff ? 'bg-primary' : 'bg-outline-variant'}`}
                 onClick={() => setIsTimeOff(!isTimeOff)}
-                style={{ margin: 0 }}
               >
-                <div className="toggle-knob"></div>
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] left-[2px] transition-transform duration-200 ${isTimeOff ? 'translate-x-5 bg-black' : ''}`}></div>
               </div>
             </div>
 
             {!isTimeOff && (
               <>
-                <div className="control-group">
-                  <label>PROJECT / ACTIVITY</label>
+                <div className="flex flex-col gap-2 mr-6">
+                  <label className="text-xs text-on-surface-variant tracking-wider">PROJECT / ACTIVITY</label>
                   <select 
-                    className="control-select"
+                    className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none min-w-[200px]"
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
                   >
-                    {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {PROJECTS.map(p => <option key={p} value={p} className="bg-surface">{p}</option>)}
                   </select>
                 </div>
                 
-                <div className="control-group">
-                  <label>HOURS</label>
+                <div className="flex flex-col gap-2 mr-6">
+                  <label className="text-xs text-on-surface-variant tracking-wider">HOURS</label>
                   <input 
                     type="number" 
-                    className="control-input" 
+                    className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none w-24 text-center" 
                     min="0.5"
                     max={8 - (totalHoursSelectedDay - (editingLogId ? (logs.find(l=>l.id===editingLogId)?.hours || 0) : 0))}
                     step="0.5"
@@ -319,34 +320,36 @@ export function TimeLogs() {
               </>
             )}
             
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+            <div className="ml-auto flex gap-2">
               {editingLogId && (
                 <>
-                  <button className="btn btn-danger" onClick={handleDeleteLog}>DELETE</button>
-                  <button className="btn btn-outline" onClick={handleCancelEdit}>CANCEL</button>
+                  <button className="px-4 py-2.5 rounded font-bold transition-colors text-sm bg-error-container text-on-error-container hover:bg-error" onClick={handleDeleteLog}>DELETE</button>
+                  <button className="px-4 py-2.5 rounded font-bold transition-colors text-sm border border-outline-variant text-on-surface hover:bg-surface-variant" onClick={handleCancelEdit}>CANCEL</button>
                 </>
               )}
-              <button className="btn log-time-btn" onClick={handleLogTime}>
+              <button className="bg-secondary text-black hover:bg-secondary/90 px-6 py-2.5 rounded font-bold text-sm" onClick={handleLogTime}>
                 {editingLogId ? 'UPDATE' : 'LOG TIME'}
               </button>
             </div>
           </div>
         ) : (
-          <div className="entry-controls" style={{ alignItems: 'center', justifyContent: 'center', padding: '1.5rem', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border)' }}>
-            <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Info size={16} color="var(--accent)"/> Maximum hours (8h) logged for this day. Click on an entry in the calendar to edit it.
+          <div className="flex items-center justify-center p-6 bg-surface-variant/20 rounded border border-outline-variant mb-8">
+            <span className="text-sm text-on-surface-variant flex items-center gap-2">
+              <Info size={16} className="text-primary"/> Maximum hours (8h) logged for this day. Click on an entry in the calendar to edit it.
             </span>
           </div>
         )}
 
-        <div className="calendar-grid">
-          <div className="calendar-header">
-            <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
+        <div className="border border-outline-variant bg-surface-container rounded-lg overflow-hidden mb-8">
+          <div className="grid grid-cols-7 border-b border-outline-variant">
+            {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(d => (
+              <div key={d} className="p-4 text-center text-xs text-on-surface-variant tracking-wider border-r border-outline-variant last:border-r-0">{d}</div>
+            ))}
           </div>
-          <div className="calendar-body">
+          <div className="grid grid-cols-7">
             {calendarDays.map((day, idx) => {
               if (day === null) {
-                return <div key={`empty-${idx}`} className="calendar-day empty"></div>;
+                return <div key={`empty-${idx}`} className="min-h-[120px] border-r border-b border-outline-variant p-2 bg-black/20 cursor-default [&:nth-child(7n)]:border-r-0"></div>;
               }
 
               const dateStr = formatDateStr(day);
@@ -363,30 +366,30 @@ export function TimeLogs() {
                     setHours(8);
                     setIsTimeOff(false);
                   }}
-                  className={`calendar-day ${isSelectedDay ? 'active-day' : ''}`}
+                  className={`min-h-[120px] border-r border-b border-outline-variant p-2 flex flex-col gap-1 cursor-pointer transition-colors hover:bg-surface-variant/30 [&:nth-child(7n)]:border-r-0 ${isSelectedDay ? 'bg-surface-variant/20 ring-1 ring-inset ring-primary' : ''}`}
                 >
-                  <span className={`date ${isTodayDay ? 'highlight' : ''}`}>
+                  <span className={`text-sm font-mono mb-1 ${isTodayDay ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
                     {String(day).padStart(2, '0')} {isTodayDay ? '(TODAY)' : ''}
                   </span>
                   
                   {dayLogs.map(log => {
-                    const entryClass = log.category === 'PROJECT WORK' ? 'project-entry' : 
-                                       log.category === 'MEETINGS' ? 'meeting-entry' : 'timeoff-entry';
+                    const entryClass = log.category === 'PROJECT WORK' ? 'bg-primary/15 text-primary' : 
+                                       log.category === 'MEETINGS' ? 'bg-white/10 text-on-surface-variant' : 'bg-secondary/15 text-secondary';
                     return (
                       <div 
                         key={log.id} 
-                        className={`log-entry ${entryClass}`}
+                        className={`flex justify-between p-1 px-2 rounded-sm text-[0.65rem] font-mono cursor-pointer ${entryClass}`}
                         onClick={(e) => handleEditLog(e, log)}
-                        style={{ cursor: 'pointer', outline: editingLogId === log.id ? '2px solid var(--text-primary)' : 'none' }}
+                        style={{ outline: editingLogId === log.id ? '2px solid currentColor' : 'none' }}
                       >
-                        <span className="log-name">{log.project}</span>
-                        <span className="log-hours">{log.hours.toFixed(1)}h</span>
+                        <span className="truncate mr-2 font-semibold">{log.project}</span>
+                        <span>{log.hours.toFixed(1)}h</span>
                       </div>
                     );
                   })}
 
                   {isSelectedDay && showForm && !editingLogId && (
-                    <div className="log-placeholder">LOG HOURS HERE</div>
+                    <div className="bg-error/20 text-error p-1 text-center text-[0.65rem] italic rounded-sm mt-1">LOG HOURS HERE</div>
                   )}
                 </div>
               );
@@ -394,19 +397,19 @@ export function TimeLogs() {
           </div>
         </div>
 
-        <div className="floating-stats">
-          <h4>QUICK STATS</h4>
-          <div className="stat-row">
-            <span className="stat-name">BDC</span>
-            <span className="stat-hours">104h</span>
+        <div className="fixed bottom-6 right-6 bg-[#080a0f] border border-outline-variant p-5 rounded-lg shadow-2xl w-64 z-10">
+          <h4 className="text-[0.65rem] text-on-surface-variant tracking-widest mb-4 font-bold">QUICK STATS</h4>
+          <div className="flex justify-between mb-3 text-sm">
+            <span className="text-on-surface-variant">BDC</span>
+            <span className="text-primary font-mono font-bold">104h</span>
           </div>
-          <div className="stat-row">
-            <span className="stat-name">ERM Assess</span>
-            <span className="stat-hours">42h</span>
+          <div className="flex justify-between mb-3 text-sm">
+            <span className="text-on-surface-variant">ERM Assess</span>
+            <span className="text-primary font-mono font-bold">42h</span>
           </div>
-          <div className="stat-row">
-            <span className="stat-name">Time-Off</span>
-            <span className="stat-hours lime">8h</span>
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Time-Off</span>
+            <span className="text-secondary font-mono font-bold">8h</span>
           </div>
         </div>
 
