@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Info, Clock, AlertTriangle } from 'lucide-react';
 
 type Category = 'PROJECT WORK' | 'MEETINGS' | 'TIME-OFF';
@@ -81,6 +81,16 @@ const getFirstUnloggedDay = (logs: Log[]) => {
 };
 
 export function TimeLogs() {
+  const selectedCellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedCellRef.current) {
+      setTimeout(() => {
+        selectedCellRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, []);
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(() => getFirstUnloggedDay(INITIAL_LOGS));
   
@@ -360,6 +370,7 @@ export function TimeLogs() {
               return (
                 <div 
                   key={`day-${day}`}
+                  ref={isSelectedDay ? selectedCellRef : null}
                   onClick={() => {
                     setSelectedDate(new Date(year, month, day));
                     setEditingLogId(null);
