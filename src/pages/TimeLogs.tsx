@@ -366,18 +366,25 @@ export function TimeLogs() {
               const dayLogs = logs.filter(l => l.date === dateStr);
               const isSelectedDay = isSelected(day);
               const isTodayDay = isToday(day);
+              const dayDate = new Date(year, month, day);
+              const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
 
               return (
                 <div 
                   key={`day-${day}`}
                   ref={isSelectedDay ? selectedCellRef : null}
                   onClick={() => {
+                    if (isWeekend) return;
                     setSelectedDate(new Date(year, month, day));
                     setEditingLogId(null);
                     setHours(8);
                     setIsTimeOff(false);
                   }}
-                  className={`min-h-[120px] border-r border-b border-outline-variant p-2 flex flex-col gap-1 cursor-pointer transition-colors hover:bg-surface-variant/30 [&:nth-child(7n)]:border-r-0 ${isSelectedDay ? 'bg-surface-variant/20 ring-1 ring-inset ring-primary' : ''}`}
+                  className={`min-h-[120px] border-r border-b border-outline-variant p-2 flex flex-col gap-1 [&:nth-child(7n)]:border-r-0 ${
+                    isWeekend 
+                      ? 'bg-black/40 opacity-50 cursor-not-allowed pattern-diagonal-lines pattern-bg-transparent pattern-outline-variant/10 pattern-size-4' 
+                      : `cursor-pointer transition-colors hover:bg-surface-variant/30 ${isSelectedDay ? 'bg-surface-variant/20 ring-1 ring-inset ring-primary' : ''}`
+                  }`}
                 >
                   <span className={`text-sm font-mono mb-1 ${isTodayDay ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
                     {String(day).padStart(2, '0')} {isTodayDay ? '(TODAY)' : ''}
