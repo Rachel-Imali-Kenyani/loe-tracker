@@ -8,6 +8,10 @@ This repo now includes backend notification automation scaffolding:
   - inserts `PROJECT_REMOVED` notifications when `project_allocations.end_date` changes from `null` to a real date
 - `migrations/202604250220_loe_reminder_rpc.sql`
   - creates `public.users_with_incomplete_loe(...)` for reminder targeting
+- `migrations/202604250330_add_profile_country.sql`
+  - adds `country` column to `profiles` table for holiday lookups
+- `migrations/202604250340_add_kenya_april_holidays.sql`
+  - inserts time-off entries for Kenyan national holidays (April 4th and 6th, 2026)
 - `functions/send-loe-reminders/index.ts`
   - scheduled Edge Function that inserts `REMINDER` notifications for users with incomplete LoE
 - `seed.sql`
@@ -43,7 +47,9 @@ Or run the SQL files manually in the Supabase SQL editor in this order:
 
 1. `202604250215_notifications_automation.sql`
 2. `202604250220_loe_reminder_rpc.sql`
-3. `seed.sql`
+3. `202604250330_add_profile_country.sql`
+4. `202604250340_add_kenya_april_holidays.sql`
+5. `seed.sql`
 
 ## Deploy Reminder Function
 

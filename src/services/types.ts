@@ -37,6 +37,7 @@ export type NotificationRecord = {
 export type SettingsRecord = {
   fullName: string;
   email: string;
+  country: string;
   emailAlerts: boolean;
   weeklyDigest: boolean;
 };

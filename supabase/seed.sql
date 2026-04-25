@@ -37,26 +37,28 @@ with auth_user as (
   from auth.users
   where email = 'rachel.kenyani@pixeledge.io'
 )
-insert into public.profiles (id, email, full_name)
-select au.id, au.email, 'Rachel Kenyani'
+insert into public.profiles (id, email, full_name, country)
+select au.id, au.email, 'Rachel Kenyani', 'KE'
 from auth_user au
 on conflict (id) do update
 set
   email = excluded.email,
-  full_name = excluded.full_name;
+  full_name = excluded.full_name,
+  country = excluded.country;
 
 with auth_user as (
   select id, email
   from auth.users
   where email = 'david.mutiso@pixeledge.io'
 )
-insert into public.profiles (id, email, full_name)
-select au.id, au.email, 'David Mutiso'
+insert into public.profiles (id, email, full_name, country)
+select au.id, au.email, 'David Mutiso', 'US'
 from auth_user au
 on conflict (id) do update
 set
   email = excluded.email,
-  full_name = excluded.full_name;
+  full_name = excluded.full_name,
+  country = excluded.country;
 
 with auth_user as (
   select id
@@ -248,6 +250,34 @@ where not exists (
       = coalesce(rl.project_id, '00000000-0000-0000-0000-000000000000'::uuid)
     and tl.category = rl.category
     and tl.hours = rl.hours
+);
+
+-- Rachel holiday time-off entries for April 2026
+-- April 4th: Good Friday, April 6th: Easter Monday
+insert into public.time_logs (id, user_id, project_id, log_date, category, hours, is_time_off)
+select
+  gen_random_uuid(),
+  au.id,
+  null,
+  holiday_date,
+  'TIME-OFF',
+  8,
+  true
+from (
+  select id
+  from auth.users
+  where email = 'rachel.kenyani@pixeledge.io'
+) au
+cross join (
+  values
+    ('2026-04-04'::date),
+    ('2026-04-06'::date)
+) as holidays(holiday_date)
+where not exists (
+  select 1
+  from public.time_logs tl
+  where tl.user_id = au.id
+    and tl.log_date = holiday_date
 );
 
 -- David current-month logs:
