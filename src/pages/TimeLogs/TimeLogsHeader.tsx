@@ -54,11 +54,6 @@ export function TimeLogsHeader({
         >
           SUBMIT LOE
         </Button>
-        {incompleteDaysCount > 0 ? (
-          <span className="text-[0.65rem] text-error text-right max-w-[250px] leading-tight mt-1">
-            Missing logs for {incompleteDaysCount} work day(s)
-          </span>
-        ) : null}
       </div>
     </header>
   );

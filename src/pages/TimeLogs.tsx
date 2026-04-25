@@ -328,7 +328,10 @@ export function TimeLogs() {
     const nextHours = isTimeOff ? 8 : Number(hours);
 
     if (otherLogsHours + nextHours > 8) {
-      setSaveError("Total logged hours for a day cannot exceed 8 hours.");
+      const remainingCapacity = 8 - otherLogsHours;
+      setSaveError(
+        `Total logged hours for a day cannot exceed 8 hours. You have already logged ${otherLogsHours}h, leaving only ${remainingCapacity}h available.`,
+      );
       return;
     }
 
