@@ -384,7 +384,7 @@ export function TimeLogs() {
             style={incompleteDays.length > 0 ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
             title={incompleteDays.length > 0 ? 'Complete all work days to submit' : ''}
           >
-            <AlertTriangle size={16} /> Submit LoE
+            <AlertTriangle size={16} /> SUBMIT LOE
           </button>
           {incompleteDays.length > 0 ? (
             <span className="text-[0.65rem] text-error text-right max-w-[250px] leading-tight mt-1">

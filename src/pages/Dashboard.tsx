@@ -104,7 +104,7 @@ export function Dashboard() {
             className="flex items-center gap-2 bg-secondary text-black px-6 py-3 rounded font-bold hover:bg-secondary/90 transition-colors"
             onClick={() => navigate('/time-logs')}
           >
-            <Clock size={18} /> Log your time
+            <Clock size={18} /> LOG YOUR TIME
           </button>
         </div>
       </div>

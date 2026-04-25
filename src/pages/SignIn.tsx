@@ -136,7 +136,7 @@ export function SignIn() {
             disabled={isSubmitting}
           >
             {isSubmitting ? <LoaderCircle className="animate-spin" size={18} /> : <LogIn size={18} />}
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
+            {isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}
           </button>
         </form>
       </div>
