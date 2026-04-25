@@ -1,17 +1,64 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Bell, CheckCircle2, Mail, UserRound, X } from 'lucide-react';
+import { Bell, CheckCircle2, LoaderCircle, Mail, UserRound, X } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
+import { getSettings, updateSettings } from '../services/settings';
 
-const defaultFullName = 'Imali Kenyani';
-const defaultEmail = 'imali.kenyani@example.com';
+const defaultSettings = {
+  fullName: '',
+  email: '',
+  emailAlerts: true,
+  weeklyDigest: true,
+};
 
 export function Settings() {
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(true);
-  const [fullName, setFullName] = useState(defaultFullName);
+  const { user, userId } = useAuth();
+  const [emailAlerts, setEmailAlerts] = useState(defaultSettings.emailAlerts);
+  const [weeklyDigest, setWeeklyDigest] = useState(defaultSettings.weeklyDigest);
+  const [fullName, setFullName] = useState(defaultSettings.fullName);
+  const [email, setEmail] = useState(defaultSettings.email);
+  const [initialState, setInitialState] = useState(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const hasChanges = emailAlerts !== true || weeklyDigest !== true || fullName !== defaultFullName;
+  const hasChanges =
+    emailAlerts !== initialState.emailAlerts ||
+    weeklyDigest !== initialState.weeklyDigest ||
+    fullName !== initialState.fullName;
+
+  useEffect(() => {
+    const userEmail = user?.email;
+
+    if (!userId || !userEmail) {
+      return;
+    }
+
+    const loadSettings = async () => {
+      setIsLoading(true);
+      setQueryError(null);
+
+      try {
+        const result = await getSettings(userId, userEmail);
+        const settings = result.record;
+        setIsEmpty(result.isEmpty);
+        setInitialState(settings);
+        setEmailAlerts(settings.emailAlerts);
+        setWeeklyDigest(settings.weeklyDigest);
+        setFullName(settings.fullName);
+        setEmail(settings.email);
+      } catch (error) {
+        setQueryError(error instanceof Error ? error.message : 'Unable to load settings.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSettings();
+  }, [user?.email, userId]);
 
   useEffect(() => {
     if (!showSuccessToast) {
@@ -25,12 +72,31 @@ export function Settings() {
     return () => window.clearTimeout(timeoutId);
   }, [showSuccessToast]);
 
-  const handleSaveChanges = () => {
-    if (!hasChanges) {
+  const handleSaveChanges = async () => {
+    if (!hasChanges || !userId) {
       return;
     }
 
-    setShowSuccessToast(true);
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const nextState = {
+        fullName,
+        email,
+        emailAlerts,
+        weeklyDigest,
+      };
+
+      await updateSettings(userId, nextState);
+      setInitialState(nextState);
+      setIsEmpty(false);
+      setShowSuccessToast(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save settings.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderToggle = ({
@@ -110,6 +176,24 @@ export function Settings() {
           </div>
         </header>
 
+        {queryError ? (
+          <div className="mt-6 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+            {queryError}
+          </div>
+        ) : null}
+
+        {saveError ? (
+          <div className="mt-6 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+            {saveError}
+          </div>
+        ) : null}
+
+        {!isLoading && isEmpty ? (
+          <div className="mt-6 rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm text-on-surface-variant">
+            No saved profile or notification preferences were found. Default settings are shown until you save.
+          </div>
+        ) : null}
+
         <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr] my-8">
           <section className="rounded-3xl border border-outline-variant bg-surface-container p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="mb-6 flex items-start justify-between gap-4">
@@ -122,22 +206,26 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {renderToggle({
-                label: 'Real-time Email Alerts',
-                description: 'Get immediate updates when allocations change or a teammate needs input.',
-                enabled: emailAlerts,
-                onToggle: () => setEmailAlerts(!emailAlerts),
-                icon: <Mail size={20} />,
-              })}
-              {renderToggle({
-                label: 'Weekly LoE Digest',
-                description: 'Receive a weekly summary of logged effort, pending reviews, and project shifts.',
-                enabled: weeklyDigest,
-                onToggle: () => setWeeklyDigest(!weeklyDigest),
-                icon: <Bell size={20} />,
-              })}
-            </div>
+            {isLoading ? (
+              <div className="text-sm text-on-surface-variant">Loading settings...</div>
+            ) : (
+              <div className="space-y-4">
+                {renderToggle({
+                  label: 'Real-time Email Alerts',
+                  description: 'Get immediate updates when allocations change or a teammate needs input.',
+                  enabled: emailAlerts,
+                  onToggle: () => setEmailAlerts(!emailAlerts),
+                  icon: <Mail size={20} />,
+                })}
+                {renderToggle({
+                  label: 'Weekly LoE Digest',
+                  description: 'Receive a weekly summary of logged effort, pending reviews, and project shifts.',
+                  enabled: weeklyDigest,
+                  onToggle: () => setWeeklyDigest(!weeklyDigest),
+                  icon: <Bell size={20} />,
+                })}
+              </div>
+            )}
           </section>
 
           <section className="rounded-3xl border border-outline-variant bg-surface-container p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
@@ -151,34 +239,46 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="mb-2 block text-xs font-bold tracking-[0.18em] text-on-surface-variant">FULL NAME</label>
-                <input
-                  type="text"
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-variant/10 px-4 py-3 text-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant focus:border-primary"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-bold tracking-[0.18em] text-on-surface-variant">EMAIL ADDRESS</label>
-                <input
-                  type="email"
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-variant/5 px-4 py-3 text-sm text-on-surface-variant outline-none"
-                  defaultValue={defaultEmail}
-                  disabled
-                />
-              </div>
-              <button
+            {isLoading ? (
+              <div className="text-sm text-on-surface-variant">Loading profile...</div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="mb-2 block text-xs font-bold tracking-[0.18em] text-on-surface-variant">FULL NAME</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-2xl border border-outline-variant bg-surface-variant/10 px-4 py-3 text-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant focus:border-primary"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-xs font-bold tracking-[0.18em] text-on-surface-variant">EMAIL ADDRESS</label>
+                  <input
+                    type="email"
+                    className="w-full rounded-2xl border border-outline-variant bg-surface-variant/5 px-4 py-3 text-sm text-on-surface-variant outline-none"
+                    value={email}
+                    disabled
+                    readOnly
+                  />
+                </div>
+                <button
                   type="button"
                   className="rounded-2xl bg-secondary px-5 py-3 text-sm font-bold text-black transition-all hover:bg-secondary/90 disabled:cursor-not-allowed disabled:grayscale disabled:opacity-50"
-                  disabled={!hasChanges}
-                  onClick={handleSaveChanges}
+                  disabled={!hasChanges || isSaving}
+                  onClick={() => void handleSaveChanges()}
                 >
-                  SAVE CHANGES
+                  {isSaving ? (
+                    <span className="inline-flex items-center gap-2">
+                      <LoaderCircle className="animate-spin" size={16} />
+                      SAVING...
+                    </span>
+                  ) : (
+                    'SAVE CHANGES'
+                  )}
                 </button>
-            </div>
+              </div>
+            )}
           </section>
         </div>
       </div>
