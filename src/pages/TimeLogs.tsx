@@ -1,6 +1,16 @@
 import type { MouseEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Info, Clock, AlertTriangle, LoaderCircle } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Clock,
+  AlertTriangle,
+  LoaderCircle,
+  X,
+  Calendar,
+  Lock,
+} from "lucide-react";
 import { useAuth } from '../auth/AuthContext';
 import {
   getActiveProjects,
@@ -42,39 +52,50 @@ function getDisplayProject(log: TimeLogRecord) {
   return log.project;
 }
 
-function getFirstUnloggedDay(logs: TimeLogRecord[], year: number, month: number) {
-  const today = new Date();
+function isWorkDay(date: Date) {
+  const dayOfWeek = date.getDay();
+  return dayOfWeek !== 0 && dayOfWeek !== 6;
+}
+
+function getLoggedHoursForDate(logs: TimeLogRecord[], dateStr: string) {
+  return logs
+    .filter((log) => log.date === dateStr)
+    .reduce((sum, log) => sum + log.hours, 0);
+}
+
+function getFirstIncompleteWorkDay(logs: TimeLogRecord[], year: number, month: number) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let firstWorkDay: Date | null = null;
 
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
+    if (!isWorkDay(date)) {
       continue;
     }
 
+    if (!firstWorkDay) {
+      firstWorkDay = date;
+    }
+
     const dateStr = formatDateStr(year, month, day);
-    const hoursLogged = logs
-      .filter((log) => log.date === dateStr)
-      .reduce((sum, log) => sum + log.hours, 0);
+    const hoursLogged = getLoggedHoursForDate(logs, dateStr);
 
     if (hoursLogged < 8) {
-      return new Date(year, month, day);
+      return date;
     }
   }
 
-  if (today.getFullYear() === year && today.getMonth() === month) {
-    return today;
-  }
-
-  return new Date(year, month, 1);
+  return firstWorkDay ?? new Date(year, month, 1);
 }
 
 export function TimeLogs() {
   const { userId } = useAuth();
   const selectedCellRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return getFirstIncompleteWorkDay([], today.getFullYear(), today.getMonth());
+  });
   const [selectedProject, setSelectedProject] = useState<string>(OTHERS_OPTION);
   const [hours, setHours] = useState<number | string>(8);
   const [isTimeOff, setIsTimeOff] = useState(false);
@@ -83,6 +104,7 @@ export function TimeLogs() {
   const [projects, setProjects] = useState<SelectableProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -138,16 +160,7 @@ export function TimeLogs() {
           formatMonthBoundary(currentDate, 'end'),
         );
         setLogs(nextLogs);
-        setSelectedDate((currentSelected) => {
-          if (
-            currentSelected.getFullYear() === year &&
-            currentSelected.getMonth() === month
-          ) {
-            return currentSelected;
-          }
-
-          return getFirstUnloggedDay(nextLogs, year, month);
-        });
+        setSelectedDate(getFirstIncompleteWorkDay(nextLogs, year, month));
       } catch (error) {
         setQueryError(error instanceof Error ? error.message : 'Unable to load time logs.');
       } finally {
@@ -196,15 +209,12 @@ export function TimeLogs() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dayOfWeek = date.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
+      if (!isWorkDay(date)) {
         continue;
       }
 
       const dateStr = formatDateStr(year, month, day);
-      const hoursLogged = logs
-        .filter((log) => log.date === dateStr)
-        .reduce((sum, log) => sum + log.hours, 0);
+      const hoursLogged = getLoggedHoursForDate(logs, dateStr);
 
       if (hoursLogged < 8) {
         missingDays.push(day);
@@ -227,6 +237,16 @@ export function TimeLogs() {
 
     return count;
   }, [daysInMonth, month, year]);
+
+  const firstIncompleteDate = useMemo(
+    () => getFirstIncompleteWorkDay(logs, year, month),
+    [logs, month, year],
+  );
+  const firstIncompleteDateStr = formatDateStr(
+    firstIncompleteDate.getFullYear(),
+    firstIncompleteDate.getMonth(),
+    firstIncompleteDate.getDate(),
+  );
 
   const quickStats = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -259,11 +279,25 @@ export function TimeLogs() {
     setIsTimeOff(false);
   };
 
+  const closeLogModal = () => {
+    setIsLogModalOpen(false);
+    setSaveError(null);
+    resetForm();
+  };
+
+  const openCreateLogModal = () => {
+    setSaveError(null);
+    resetForm();
+    setIsLogModalOpen(true);
+  };
+
   const handleEditLog = (event: MouseEvent, log: TimeLogRecord) => {
     event.stopPropagation();
+    setSaveError(null);
     const [logYear, logMonth, logDay] = log.date.split('-').map(Number);
     setSelectedDate(new Date(logYear, logMonth - 1, logDay));
     setEditingLogId(log.id);
+    setIsLogModalOpen(true);
 
     if (log.isTimeOff) {
       setIsTimeOff(true);
@@ -297,7 +331,7 @@ export function TimeLogs() {
 
     try {
       await deleteTimeLog(editingLogId);
-      resetForm();
+      closeLogModal();
       setReloadKey((value) => value + 1);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Unable to delete time log.');
@@ -312,6 +346,11 @@ export function TimeLogs() {
     }
 
     const dateStr = dateStrSelected;
+    if (!editingLogId && dateStr !== firstIncompleteDateStr) {
+      setSaveError('Complete the earliest incomplete work day before logging a later date.');
+      return;
+    }
+
     const otherLogsHours = logs
       .filter((log) => log.date === dateStr && log.id !== editingLogId)
       .reduce((sum, log) => sum + log.hours, 0);
@@ -357,7 +396,7 @@ export function TimeLogs() {
         });
       }
 
-      resetForm();
+      closeLogModal();
       setReloadKey((value) => value + 1);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Unable to save time log.');
@@ -372,17 +411,36 @@ export function TimeLogs() {
         <div>
           <h1 className="text-2xl font-bold text-primary mb-1">Time Logger</h1>
           <div className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded border border-outline-variant mt-2">
-            <span className="font-mono text-sm text-on-surface-variant mr-4">{monthName}</span>
-            <button className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors" onClick={handlePrevMonth}><ChevronLeft size={16} /></button>
-            <button className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors" onClick={handleNextMonth}><ChevronRight size={16} /></button>
+            <span className="font-mono text-sm text-on-surface-variant mr-4">
+              {monthName}
+            </span>
+            <button
+              className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors"
+              onClick={handlePrevMonth}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              className="p-1 rounded text-on-surface hover:bg-surface-variant transition-colors"
+              onClick={handleNextMonth}
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
           <button
             className="px-6 py-3 rounded font-bold transition-colors flex items-center justify-center gap-2 text-sm bg-error-container text-on-error-container hover:bg-error"
             disabled={incompleteDays.length > 0}
-            style={incompleteDays.length > 0 ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}}
-            title={incompleteDays.length > 0 ? 'Complete all work days to submit' : ''}
+            style={
+              incompleteDays.length > 0
+                ? {
+                    opacity: 0.5,
+                    cursor: "not-allowed",
+                    filter: "grayscale(1)",
+                  }
+                : {}
+            }
           >
             <AlertTriangle size={16} /> SUBMIT LOE
           </button>
@@ -409,105 +467,62 @@ export function TimeLogs() {
       <div className="pt-0">
         <div className="grid grid-cols-3 gap-6 mb-8">
           <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-secondary">
-            <div><Info size={20} className="text-secondary" /></div>
+            <div>
+              <Info size={20} className="text-secondary" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">SUBMISSION DEADLINE</span>
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">
+                SUBMISSION DEADLINE
+              </span>
               <span className="text-base text-on-surface font-mono">
-                {new Date(year, month + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, 23:59 EST
+                {new Date(year, month + 1, 0).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+                , 23:59 EST
               </span>
             </div>
           </div>
           <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-primary">
-            <div><Clock size={20} className="text-primary" /></div>
+            <div>
+              <Clock size={20} className="text-primary" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">WORK DAYS</span>
-              <span className="text-base text-on-surface font-mono">{workDays} Days ({workDays * 8} Hours Total)</span>
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">
+                WORK DAYS
+              </span>
+              <span className="text-base text-on-surface font-mono">
+                {workDays} Days ({workDays * 8} Hours Total)
+              </span>
             </div>
           </div>
           <div className="bg-surface-container border border-outline-variant rounded-lg p-6 flex items-center gap-4 border-l-4 border-l-on-surface">
-            <div><AlertTriangle size={20} className="text-on-surface" /></div>
+            <div>
+              <AlertTriangle size={20} className="text-on-surface" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">STATUS</span>
-              <span className="text-base text-on-surface font-mono">{Math.max(0, workDays * 8 - totalLoggedHours)} Hours Remaining</span>
+              <span className="text-[0.65rem] text-on-surface-variant tracking-widest mb-1">
+                STATUS
+              </span>
+              <span className="text-base text-on-surface font-mono">
+                {Math.max(0, workDays * 8 - totalLoggedHours)} Hours Remaining
+              </span>
             </div>
           </div>
         </div>
 
-        {!isLoading && logs.length === 0 ? (
+        {!isLoading && logs.length === 0 && (
           <div className="mb-8 rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm text-on-surface-variant">
-            No time logs found for this month yet. Pick a work day and create the first entry.
+            No time logs found for this month yet. Pick a work day and create
+            the first entry.
           </div>
-        ) : null}
+        )}
 
-        {showForm ? (
-          <div className="flex items-center bg-surface-variant/20 p-6 rounded border border-outline-variant mb-8">
-            <div className="flex flex-row items-center gap-3 mr-6">
-              <label
-                className={`text-xs tracking-wider cursor-pointer font-semibold ${isTimeOff ? 'text-primary' : 'text-on-surface-variant'}`}
-                onClick={() => setIsTimeOff(!isTimeOff)}
-              >
-                TIME OFF
-              </label>
-              <div
-                className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${isTimeOff ? 'bg-primary' : 'bg-outline-variant'}`}
-                onClick={() => setIsTimeOff(!isTimeOff)}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full absolute top-[2px] left-[2px] transition-transform duration-200 ${isTimeOff ? 'translate-x-5 bg-black' : ''}`}></div>
-              </div>
-            </div>
-
-            {!isTimeOff ? (
-              <>
-                <div className="flex flex-col gap-2 mr-6">
-                  <label className="text-xs text-on-surface-variant tracking-wider">PROJECT / ACTIVITY</label>
-                  <select
-                    className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none min-w-[200px]"
-                    value={selectedProject}
-                    onChange={(event) => setSelectedProject(event.target.value)}
-                  >
-                    {projects.map((project) => (
-                      <option key={project.value} value={project.value} className="bg-surface">
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-2 mr-6">
-                  <label className="text-xs text-on-surface-variant tracking-wider">HOURS</label>
-                  <input
-                    type="number"
-                    className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none w-24 text-center"
-                    min="0.5"
-                    max={8 - (totalHoursSelectedDay - (editingLogId ? (logs.find((log) => log.id === editingLogId)?.hours || 0) : 0))}
-                    step="0.5"
-                    value={hours}
-                    onChange={(event) => setHours(event.target.value)}
-                  />
-                </div>
-              </>
-            ) : null}
-
-            <div className="ml-auto flex gap-2">
-              {editingLogId ? (
-                <>
-                  <button className="px-4 py-2.5 rounded font-bold transition-colors text-sm bg-error-container text-on-error-container hover:bg-error disabled:opacity-50" onClick={() => void handleDeleteLog()} disabled={isSaving}>
-                    DELETE
-                  </button>
-                  <button className="px-4 py-2.5 rounded font-bold transition-colors text-sm border border-outline-variant text-on-surface hover:bg-surface-variant" onClick={resetForm}>
-                    CANCEL
-                  </button>
-                </>
-              ) : null}
-              <button className="bg-secondary text-black hover:bg-secondary/90 px-6 py-2.5 rounded font-bold text-sm disabled:opacity-60" onClick={() => void handleLogTime()} disabled={isSaving || isLoading}>
-                {isSaving ? <span className="inline-flex items-center gap-2"><LoaderCircle className="animate-spin" size={16} /> SAVING</span> : editingLogId ? 'UPDATE' : 'LOG TIME'}
-              </button>
-            </div>
-          </div>
-        ) : (
+        {!showForm && (
           <div className="flex items-center justify-center p-6 bg-surface-variant/20 rounded border border-outline-variant mb-8">
             <span className="text-sm text-on-surface-variant flex items-center gap-2">
-              <Info size={16} className="text-primary" /> Maximum hours (8h) logged for this day. Click on an entry in the calendar to edit it.
+              <Info size={16} className="text-primary" /> Maximum hours (8h)
+              logged for this day. Click on an entry in the calendar to edit it.
             </span>
           </div>
         )}
@@ -520,14 +535,24 @@ export function TimeLogs() {
 
         <div className="border border-outline-variant bg-surface-container rounded-lg overflow-hidden mb-8">
           <div className="grid grid-cols-7 border-b border-outline-variant">
-            {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day) => (
-              <div key={day} className="p-4 text-center text-xs text-on-surface-variant tracking-wider border-r border-outline-variant last:border-r-0">{day}</div>
+            {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
+              <div
+                key={day}
+                className="p-4 text-center text-xs text-on-surface-variant tracking-wider border-r border-outline-variant last:border-r-0"
+              >
+                {day}
+              </div>
             ))}
           </div>
           <div className="grid grid-cols-7">
             {calendarDays.map((day, idx) => {
               if (day === null) {
-                return <div key={`empty-${idx}`} className="min-h-[120px] border-r border-b border-outline-variant p-2 bg-black/20 cursor-default [&:nth-child(7n)]:border-r-0"></div>;
+                return (
+                  <div
+                    key={`empty-${idx}`}
+                    className="min-h-[120px] border-r border-b border-outline-variant p-2 bg-black/20 cursor-default [&:nth-child(7n)]:border-r-0"
+                  ></div>
+                );
               }
 
               const dateStr = formatDateStr(year, month, day);
@@ -535,50 +560,84 @@ export function TimeLogs() {
               const isSelectedDay = isSelected(day);
               const isTodayDay = isToday(day);
               const dayDate = new Date(year, month, day);
-              const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
+              const isWeekend = !isWorkDay(dayDate);
+              const isAfterFirstIncomplete = dayDate > firstIncompleteDate;
+              const isLockedDay = !isWeekend && isAfterFirstIncomplete;
 
               return (
                 <div
                   key={`day-${day}`}
                   ref={isSelectedDay ? selectedCellRef : null}
                   onClick={() => {
-                    if (isWeekend) {
+                    if (isWeekend || isLockedDay) {
                       return;
                     }
                     setSelectedDate(new Date(year, month, day));
                     resetForm();
                   }}
-                  className={`min-h-[120px] border-r border-b border-outline-variant p-2 flex flex-col gap-1 [&:nth-child(7n)]:border-r-0 ${
-                    isWeekend
-                      ? 'bg-black/40 opacity-50 cursor-not-allowed'
-                      : `cursor-pointer transition-colors hover:bg-surface-variant/30 ${isSelectedDay ? 'bg-surface-variant/20 ring-1 ring-inset ring-primary' : ''}`
+                  className={`relative min-h-[120px] border-r border-b border-outline-variant p-2 flex flex-col gap-1 [&:nth-child(7n)]:border-r-0 ${
+                    isWeekend || isLockedDay
+                      ? "bg-black/40 opacity-50 cursor-not-allowed"
+                      : `cursor-pointer transition-colors hover:bg-surface-variant/30 ${isSelectedDay ? "bg-surface-variant/20 ring-1 ring-inset ring-primary" : ""}`
                   }`}
                 >
-                  <span className={`text-sm font-mono mb-1 ${isTodayDay ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
-                    {String(day).padStart(2, '0')} {isTodayDay ? '(TODAY)' : ''}
+                  <span
+                    className={`text-sm font-mono mb-1 ${isTodayDay ? "text-secondary font-bold bg-secondary/10 px-1 py-0.5 rounded" : "text-on-surface-variant"}`}
+                  >
+                    {String(day).padStart(2, "0")}
                   </span>
 
+                  {isWeekend && (
+                    <Calendar
+                      size={12}
+                      className="absolute top-1 right-1 text-on-surface-variant/50"
+                    />
+                  )}
+                  {isLockedDay && (
+                    <Lock
+                      size={12}
+                      className="absolute top-1 right-1 text-on-surface-variant/50"
+                    />
+                  )}
+
                   {dayLogs.map((log) => {
-                    const entryClass = log.category === 'PROJECT WORK'
-                      ? 'bg-primary/15 text-primary'
-                      : log.category === 'MEETINGS'
-                        ? 'bg-white/10 text-on-surface-variant'
-                        : 'bg-secondary/15 text-secondary';
+                    const entryClass =
+                      log.category === "PROJECT WORK"
+                        ? "bg-primary/15 text-primary"
+                        : log.category === "MEETINGS"
+                          ? "bg-white/10 text-on-surface-variant"
+                          : "bg-secondary/15 text-secondary";
                     return (
                       <div
                         key={log.id}
                         className={`flex justify-between p-1 px-2 rounded-sm text-[0.65rem] font-mono cursor-pointer ${entryClass}`}
                         onClick={(event) => handleEditLog(event, log)}
-                        style={{ outline: editingLogId === log.id ? '2px solid currentColor' : 'none' }}
+                        style={{
+                          outline:
+                            editingLogId === log.id
+                              ? "2px solid currentColor"
+                              : "none",
+                        }}
                       >
-                        <span className="truncate mr-2 font-semibold">{getDisplayProject(log)}</span>
+                        <span className="truncate mr-2 font-semibold">
+                          {getDisplayProject(log)}
+                        </span>
                         <span>{log.hours.toFixed(1)}h</span>
                       </div>
                     );
                   })}
 
                   {isSelectedDay && showForm && !editingLogId ? (
-                    <div className="bg-error/20 text-error p-1 text-center text-[0.65rem] italic rounded-sm mt-1">LOG HOURS HERE</div>
+                    <button
+                      type="button"
+                      className="bg-secondary text-black p-2 text-center text-xs font-bold rounded border border-secondary hover:bg-secondary/90 transition-colors"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openCreateLogModal();
+                      }}
+                    >
+                      LOG TIME HERE
+                    </button>
                   ) : null}
                 </div>
               );
@@ -587,18 +646,175 @@ export function TimeLogs() {
         </div>
 
         <div className="fixed bottom-6 right-6 bg-[#080a0f] border border-outline-variant p-5 rounded-lg shadow-2xl w-64 z-10">
-          <h4 className="text-[0.65rem] text-on-surface-variant tracking-widest mb-4 font-bold">QUICK STATS</h4>
+          <h4 className="text-[0.65rem] text-on-surface-variant tracking-widest mb-4 font-bold">
+            QUICK STATS
+          </h4>
           {quickStats.length === 0 ? (
-            <div className="text-sm text-on-surface-variant">No logged hours this month.</div>
+            <div className="text-sm text-on-surface-variant">
+              No logged hours this month.
+            </div>
           ) : (
             quickStats.map(([label, value]) => (
-              <div key={label} className="flex justify-between mb-3 text-sm last:mb-0">
+              <div
+                key={label}
+                className="flex justify-between mb-3 text-sm last:mb-0"
+              >
                 <span className="text-on-surface-variant">{label}</span>
-                <span className="text-primary font-mono font-bold">{value}h</span>
+                <span className="text-primary font-mono font-bold">
+                  {value}h
+                </span>
               </div>
             ))
           )}
         </div>
+
+        {isLogModalOpen ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={closeLogModal}
+          >
+            <div
+              className="w-full max-w-2xl rounded-2xl border border-outline-variant bg-[#080a0f] shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between border-b border-outline-variant px-6 py-5">
+                <div>
+                  <p className="text-[0.65rem] tracking-[0.2em] text-on-surface-variant">
+                    LOG LOE DETAILS
+                  </p>
+                  <h2 className="mt-2 text-xl font-bold text-primary">
+                    {selectedDate.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full border border-outline-variant p-2 text-on-surface-variant transition-colors hover:bg-surface-variant"
+                  onClick={closeLogModal}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-6 py-5">
+                {saveError ? (
+                  <div className="mb-5 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+                    {saveError}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-5 md:grid-cols-[auto_1fr_auto] md:items-end">
+                  <div className="flex flex-row items-center gap-3">
+                    <label
+                      className={`text-xs tracking-wider cursor-pointer font-semibold ${isTimeOff ? "text-primary" : "text-on-surface-variant"}`}
+                      onClick={() => setIsTimeOff(!isTimeOff)}
+                    >
+                      TIME OFF
+                    </label>
+                    <div
+                      className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${isTimeOff ? "bg-primary" : "bg-outline-variant"}`}
+                      onClick={() => setIsTimeOff(!isTimeOff)}
+                    >
+                      <div
+                        className={`w-5 h-5 bg-white rounded-full absolute top-[2px] left-[2px] transition-transform duration-200 ${isTimeOff ? "translate-x-5 bg-black" : ""}`}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {!isTimeOff ? (
+                    <div className="grid gap-5 md:grid-cols-[1fr_auto]">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-on-surface-variant tracking-wider">
+                          PROJECT / ACTIVITY
+                        </label>
+                        <select
+                          className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none min-w-[200px]"
+                          value={selectedProject}
+                          onChange={(event) =>
+                            setSelectedProject(event.target.value)
+                          }
+                        >
+                          {projects.map((project) => (
+                            <option
+                              key={project.value}
+                              value={project.value}
+                              className="bg-surface"
+                            >
+                              {project.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-on-surface-variant tracking-wider">
+                          HOURS
+                        </label>
+                        <input
+                          type="number"
+                          className="bg-transparent border border-outline-variant text-on-surface px-4 py-2.5 rounded text-sm focus:border-primary outline-none w-full md:w-24 text-center"
+                          min="0.5"
+                          max={
+                            8 -
+                            (totalHoursSelectedDay -
+                              (editingLogId
+                                ? logs.find((log) => log.id === editingLogId)
+                                    ?.hours || 0
+                                : 0))
+                          }
+                          step="0.5"
+                          value={hours}
+                          onChange={(event) => setHours(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-outline-variant bg-surface-variant/20 px-4 py-3 text-sm text-on-surface-variant">
+                      Time off will fill the selected day with 8.0 hours.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-outline-variant px-6 py-4">
+                {editingLogId ? (
+                  <button
+                    className="px-4 py-2.5 rounded font-bold transition-colors text-sm bg-error-container text-on-error-container hover:bg-error disabled:opacity-50"
+                    onClick={() => void handleDeleteLog()}
+                    disabled={isSaving}
+                  >
+                    DELETE
+                  </button>
+                ) : null}
+                <button
+                  className="px-4 py-2.5 rounded font-bold transition-colors text-sm border border-outline-variant text-on-surface hover:bg-surface-variant"
+                  onClick={closeLogModal}
+                >
+                  CANCEL
+                </button>
+                <button
+                  className="bg-secondary text-black hover:bg-secondary/90 px-6 py-2.5 rounded font-bold text-sm disabled:opacity-60"
+                  onClick={() => void handleLogTime()}
+                  disabled={isSaving || isLoading}
+                >
+                  {isSaving ? (
+                    <span className="inline-flex items-center gap-2">
+                      <LoaderCircle className="animate-spin" size={16} /> SAVING
+                    </span>
+                  ) : editingLogId ? (
+                    "UPDATE"
+                  ) : (
+                    "LOG TIME"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
