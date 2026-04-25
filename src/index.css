@@ -27,7 +27,7 @@
   --success-bg: rgba(16, 185, 129, 0.1);
   --warning: #f59e0b;
   --warning-bg: rgba(245, 158, 11, 0.1);
-  
+
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -48,6 +48,16 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.ant-menu-dark .ant-menu-item-selected,
+.ant-menu-dark .ant-menu-item:hover {
+  background-color: rgba(0, 179, 153, 0.12) !important;
+}
+
+.ant-menu-dark .ant-menu-item-selected > .ant-menu-title-content,
+.ant-menu-dark .ant-menu-item:hover > .ant-menu-title-content {
+  color: #00d4b6 !important;
 }
 
 button {
