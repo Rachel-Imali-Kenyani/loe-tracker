@@ -38,7 +38,11 @@ export function Dashboard() {
     void loadDashboard();
   }, [userId]);
 
-  const totalLoe = projects.reduce((sum, project) => sum + project.loePercent, 0);
+  const uniqueProjects = Array.from(
+    new Map(projects.map((project) => [project.projectId, project])).values(),
+  );
+
+  const totalLoe = uniqueProjects.reduce((sum, project) => sum + project.loePercent, 0);
 
   return (
     <div className="p-8 max-w-7xl mx-auto h-full overflow-y-auto">
@@ -81,13 +85,13 @@ export function Dashboard() {
                   <tr>
                     <td colSpan={3} className="p-6 text-sm text-on-surface-variant">Loading allocations...</td>
                   </tr>
-                ) : projects.length === 0 ? (
+                ) : uniqueProjects.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="p-6 text-sm text-on-surface-variant">No active project allocations found.</td>
                   </tr>
                 ) : (
-                  projects.map((project, idx) => (
-                    <tr key={project.id} className={idx !== projects.length - 1 ? 'border-b border-outline-variant hover:bg-surface-variant/10' : 'hover:bg-surface-variant/10'}>
+                  uniqueProjects.map((project, idx) => (
+                    <tr key={project.projectId} className={idx !== uniqueProjects.length - 1 ? 'border-b border-outline-variant hover:bg-surface-variant/10' : 'hover:bg-surface-variant/10'}>
                       <td className="p-4 font-medium text-on-surface">{project.projectName}</td>
                       <td className="p-4 font-bold text-secondary">{project.loePercent}%</td>
                       <td className="p-4 text-right font-mono text-on-surface-variant">{formatDate(project.startDate)}</td>
